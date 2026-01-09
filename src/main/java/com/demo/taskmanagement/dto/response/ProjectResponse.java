@@ -10,7 +10,7 @@ public class ProjectResponse {
     private Long id;
     private String name;
     private String description;
-    private String key;
+    private String projectKey;
     private UserResponse owner;
     private Set<UserResponse> members;
     private Integer taskCount;

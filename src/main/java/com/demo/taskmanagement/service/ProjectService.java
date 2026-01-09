@@ -40,7 +40,7 @@ public class ProjectService {
         Project project = new Project();
         project.setName(request.getName());
         project.setDescription(request.getDescription());
-        project.setKey(request.getKey());
+        project.setProjectKey(request.getProjectKey());
         project.setOwner(currentUser);
 
         Set<User> members = new HashSet<>();
@@ -90,7 +90,7 @@ public class ProjectService {
 
         project.setName(request.getName());
         project.setDescription(request.getDescription());
-        project.setKey(request.getKey());
+        project.setProjectKey(request.getProjectKey());
 
         if (request.getMemberIds() != null) {
             Set<User> members = new HashSet<>();

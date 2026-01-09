@@ -16,7 +16,7 @@ public class ProjectRequest {
     private String description;
 
     @Size(max = 10, message = "Project key cannot exceed 10 characters")
-    private String key;
+    private String projectKey;
 
     private Set<Long> memberIds;
 }
