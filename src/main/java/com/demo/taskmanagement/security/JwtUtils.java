@@ -23,6 +23,9 @@ public class JwtUtils {
     @Value("${app.jwt.expiration}")
     private int jwtExpirationMs;
 
+    @Value("${app.jwt.reset-expiration:3600000}")
+    private int resetExpirationMs; // 1 hour
+
     private SecretKey getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -65,5 +68,24 @@ public class JwtUtils {
             logger.error("JWT claims string is empty: {}", e.getMessage());
         }
         return false;
+    }
+
+    public String generatePasswordResetToken(String email) {
+        return Jwts.builder()
+                .subject(email)
+                .claim("type", "reset")
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + resetExpirationMs))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public String getEmailFromResetToken(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
     }
 }

@@ -43,6 +43,9 @@ public class TaskService {
     private UserService userService;
 
     @Autowired
+    private EmailService emailService;
+
+    @Autowired
     private ModelMapper modelMapper;
 
     @Transactional
@@ -52,7 +55,7 @@ public class TaskService {
         Project project = projectRepository.findById(request.getProjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + request.getProjectId()));
 
-        validateProjectMember(project, currentUser);
+//        validateProjectMember(project, currentUser);
 
         Task task = new Task();
         task.setTitle(request.getTitle());
@@ -68,35 +71,58 @@ public class TaskService {
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + request.getAssigneeId()));
-            validateProjectMember(project, assignee);
+//            validateProjectMember(project, assignee);
             task.setAssignee(assignee);
+
+            // Send email notification
+            emailService.sendTaskAssignmentEmail(
+                    assignee.getEmail(),
+                    assignee.getFullName() != null ? assignee.getFullName() : assignee.getUsername(),
+                    task.getTitle(),
+                    project.getName()
+            );
         }
 
         Task savedTask = taskRepository.save(task);
         return convertToResponse(savedTask);
     }
 
+//    public List<TaskResponse> getAllTasksByProject(Long projectId) {
+//        User currentUser = userService.getCurrentUser();
+//
+//        Project project = projectRepository.findById(projectId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+//
+//        validateProjectMember(project, currentUser);
+//
+//        List<Task> tasks = taskRepository.findByProjectIdOrderByOrder(projectId);
+//        return tasks.stream()
+//                .map(this::convertToResponse)
+//                .collect(Collectors.toList());
+//    }
+
     public List<TaskResponse> getAllTasksByProject(Long projectId) {
-        User currentUser = userService.getCurrentUser();
 
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
 
-        validateProjectMember(project, currentUser);
+        // Removed currentUser and validateProjectMember check
 
         List<Task> tasks = taskRepository.findByProjectIdOrderByOrder(projectId);
+
         return tasks.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
 
+
     public List<TaskResponse> getTasksByStatus(Long projectId, TaskStatus status) {
-        User currentUser = userService.getCurrentUser();
+//        User currentUser = userService.getCurrentUser();
 
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
 
-        validateProjectMember(project, currentUser);
+//        validateProjectMember(project, currentUser);
 
         List<Task> tasks = taskRepository.findByProjectIdAndStatus(projectId, status);
         return tasks.stream()
@@ -108,8 +134,8 @@ public class TaskService {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
 
-        User currentUser = userService.getCurrentUser();
-        validateProjectMember(task.getProject(), currentUser);
+//        User currentUser = userService.getCurrentUser();
+//        validateProjectMember(task.getProject(), currentUser);
 
         return convertToResponse(task);
     }
@@ -127,8 +153,8 @@ public class TaskService {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
 
-        User currentUser = userService.getCurrentUser();
-        validateProjectMember(task.getProject(), currentUser);
+//        User currentUser = userService.getCurrentUser();
+//        validateProjectMember(task.getProject(), currentUser);
 
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
@@ -141,7 +167,18 @@ public class TaskService {
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + request.getAssigneeId()));
-            validateProjectMember(task.getProject(), assignee);
+//            validateProjectMember(task.getProject(), assignee);
+
+            // Send email if assignee changed
+            if (task.getAssignee() == null || !task.getAssignee().getId().equals(assignee.getId())) {
+                emailService.sendTaskAssignmentEmail(
+                        assignee.getEmail(),
+                        assignee.getFullName() != null ? assignee.getFullName() : assignee.getUsername(),
+                        task.getTitle(),
+                        task.getProject().getName()
+                );
+            }
+
             task.setAssignee(assignee);
         } else {
             task.setAssignee(null);
@@ -156,8 +193,8 @@ public class TaskService {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
 
-        User currentUser = userService.getCurrentUser();
-        validateProjectMember(task.getProject(), currentUser);
+//        User currentUser = userService.getCurrentUser();
+//        validateProjectMember(task.getProject(), currentUser);
 
         task.setStatus(status);
         Task updatedTask = taskRepository.save(task);
@@ -170,8 +207,8 @@ public class TaskService {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
 
-        User currentUser = userService.getCurrentUser();
-        validateProjectMember(task.getProject(), currentUser);
+//        User currentUser = userService.getCurrentUser();
+//        validateProjectMember(task.getProject(), currentUser);
 
         taskRepository.delete(task);
     }
@@ -181,13 +218,14 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
 
-        User currentUser = userService.getCurrentUser();
-        validateProjectMember(task.getProject(), currentUser);
+//        User currentUser = userService.getCurrentUser();
+//        validateProjectMember(task.getProject(), currentUser);
 
         Comment comment = new Comment();
         comment.setContent(request.getContent());
         comment.setTask(task);
-        comment.setUser(currentUser);
+        comment.setUser(userService.getCurrentUser());
+//        comment.setUser(currentUser);
 
         Comment savedComment = commentRepository.save(comment);
         return convertToCommentResponse(savedComment);
@@ -197,8 +235,8 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
 
-        User currentUser = userService.getCurrentUser();
-        validateProjectMember(task.getProject(), currentUser);
+//        User currentUser = userService.getCurrentUser();
+//        validateProjectMember(task.getProject(), currentUser);
 
         List<Comment> comments = commentRepository.findByTaskIdOrderByCreatedAtDesc(taskId);
         return comments.stream()

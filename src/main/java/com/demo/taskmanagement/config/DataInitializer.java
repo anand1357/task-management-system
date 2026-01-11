@@ -29,6 +29,10 @@ public class DataInitializer implements CommandLineRunner {
             managerRole.setName(ERole.ROLE_MANAGER);
             roleRepository.save(managerRole);
 
+            Role productOwnerRole = new Role();
+            productOwnerRole.setName(ERole.ROLE_PRODUCT_OWNER);
+            roleRepository.save(productOwnerRole);
+
             System.out.println("✅ Roles initialized successfully!");
         } else {
             System.out.println("✅ Roles already exist in database");

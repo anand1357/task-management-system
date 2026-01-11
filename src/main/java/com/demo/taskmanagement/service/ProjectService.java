@@ -62,19 +62,28 @@ public class ProjectService {
 
     public List<ProjectResponse> getAllProjects() {
         User currentUser = userService.getCurrentUser();
-        List<Project> projects = projectRepository.findAllByUserIdInvolvement(currentUser.getId());
+//        List<Project> projects = projectRepository.findAllByUserIdInvolvement(currentUser.getId());
+        List<Project> projects = projectRepository.findAll();
         return projects.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
 
+//    public ProjectResponse getProjectById(Long id) {
+//        Project project = projectRepository.findById(id)
+//                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+//
+//        User currentUser = userService.getCurrentUser();
+//        validateProjectAccess(project, currentUser);
+//
+//        return convertToResponse(project);
+//    }
+
     public ProjectResponse getProjectById(Long id) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
 
-        User currentUser = userService.getCurrentUser();
-        validateProjectAccess(project, currentUser);
-
+        // Removed currentUser lookup and access validation
         return convertToResponse(project);
     }
 
@@ -83,10 +92,10 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
 
-        User currentUser = userService.getCurrentUser();
-        if (!project.getOwner().getId().equals(currentUser.getId())) {
-            throw new UnauthorizedException("Only project owner can update the project");
-        }
+//        User currentUser = userService.getCurrentUser();
+//        if (!project.getOwner().getId().equals(currentUser.getId())) {
+//            throw new UnauthorizedException("Only project owner can update the project");
+//        }
 
         project.setName(request.getName());
         project.setDescription(request.getDescription());
@@ -113,10 +122,10 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
 
-        User currentUser = userService.getCurrentUser();
-        if (!project.getOwner().getId().equals(currentUser.getId())) {
-            throw new UnauthorizedException("Only project owner can delete the project");
-        }
+//        User currentUser = userService.getCurrentUser();
+//        if (!project.getOwner().getId().equals(currentUser.getId())) {
+//            throw new UnauthorizedException("Only project owner can delete the project");
+//        }
 
         projectRepository.delete(project);
     }

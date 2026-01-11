@@ -44,9 +44,27 @@ public class AuthService {
     @Autowired
     private JwtUtils jwtUtils;
 
+    @Autowired
+    private EmailService emailService;
+
     public JwtResponse login(LoginRequest loginRequest) {
+        // Check if input is email or username
+        User user;
+        if (loginRequest.getUsername().contains("@")) {
+            user = userRepository.findByEmail(loginRequest.getUsername())
+                    .orElseThrow(() -> new BadRequestException("Invalid email or password"));
+        } else {
+            user = userRepository.findByUsername(loginRequest.getUsername())
+                    .orElseThrow(() -> new BadRequestException("Invalid username or password"));
+        }
+
+        // Check if user is active (not soft deleted)
+        if (!user.isActive()) {
+            throw new BadRequestException("User account is deactivated");
+        }
+
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
+                new UsernamePasswordAuthenticationToken(user.getUsername(), loginRequest.getPassword())
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -85,13 +103,27 @@ public class AuthService {
         Set<String> strRoles = registerRequest.getRoles();
         Set<Role> roles = new HashSet<>();
 
-        if (strRoles == null || strRoles.isEmpty()) {
+        // Check if this is the first user - make them PRODUCT_OWNER
+        long userCount = userRepository.count();
+
+        if (userCount == 0) {
+            // First user becomes Product Owner with all privileges
+            Role productOwnerRole = roleRepository.findByName(ERole.ROLE_PRODUCT_OWNER)
+                    .orElseThrow(() -> new RuntimeException("Error: Product Owner role is not found."));
+            roles.add(productOwnerRole);
+
+            Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
+                    .orElseThrow(() -> new RuntimeException("Error: Admin role is not found."));
+            roles.add(adminRole);
+        } else if (strRoles == null || strRoles.isEmpty()) {
+            // Default role
             Role userRole = roleRepository.findByName(ERole.ROLE_USER)
                     .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
             roles.add(userRole);
         } else {
+            // Assign requested roles
             strRoles.forEach(role -> {
-                switch (role) {
+                switch (role.toLowerCase()) {
                     case "admin":
                         Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
                                 .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
@@ -101,6 +133,11 @@ public class AuthService {
                         Role managerRole = roleRepository.findByName(ERole.ROLE_MANAGER)
                                 .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
                         roles.add(managerRole);
+                        break;
+                    case "product_owner":
+                        Role productOwnerRole = roleRepository.findByName(ERole.ROLE_PRODUCT_OWNER)
+                                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                        roles.add(productOwnerRole);
                         break;
                     default:
                         Role userRole = roleRepository.findByName(ERole.ROLE_USER)
@@ -113,6 +150,39 @@ public class AuthService {
         user.setRoles(roles);
         userRepository.save(user);
 
+        if (userCount == 0) {
+            return new MessageResponse("First user (Product Owner) registered successfully!");
+        }
+
         return new MessageResponse("User registered successfully!");
+    }
+
+    public MessageResponse forgotPassword(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadRequestException("Email not found"));
+
+        if (!user.isActive()) {
+            throw new BadRequestException("User account is deactivated");
+        }
+
+        String resetToken = jwtUtils.generatePasswordResetToken(email);
+
+        // Send email with reset link
+        emailService.sendPasswordResetEmail(email, resetToken);
+
+        return new MessageResponse("Password reset instructions sent to your email");
+    }
+
+    @Transactional
+    public MessageResponse resetPassword(String token, String newPassword) {
+        String email = jwtUtils.getEmailFromResetToken(token);
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadRequestException("Invalid token"));
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        return new MessageResponse("Password reset successfully");
     }
 }

@@ -29,4 +29,18 @@ public class AuthController {
         MessageResponse response = authService.register(registerRequest);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<MessageResponse> forgotPassword(@RequestParam String email) {
+        MessageResponse response = authService.forgotPassword(email);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<MessageResponse> resetPassword(
+            @RequestParam String token,
+            @RequestParam String newPassword) {
+        MessageResponse response = authService.resetPassword(token, newPassword);
+        return ResponseEntity.ok(response);
+    }
 }
